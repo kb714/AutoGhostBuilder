@@ -1,0 +1,28 @@
+{
+  "name": "AutoGhostBuilder Test Server",
+  "description": "Temporary server for running automated tests",
+  "tags": ["test"],
+  "max_players": 1,
+  "visibility": {
+    "public": false,
+    "lan": false
+  },
+  "username": "",
+  "password": "",
+  "token": "",
+  "game_password": "",
+  "require_user_verification": false,
+  "max_upload_in_kilobytes_per_second": 0,
+  "max_upload_slots": 1,
+  "minimum_latency_in_ticks": 0,
+  "ignore_player_limit_for_returning_players": false,
+  "allow_commands": "admins-only",
+  "autosave_interval": 0,
+  "autosave_slots": 1,
+  "afk_autokick_interval": 0,
+  "auto_pause": false,
+  "only_admins_can_pause_the_game": true,
+  "autosave_only_on_server": true,
+  "non_blocking_saving": false,
+  "admins": []
+}
