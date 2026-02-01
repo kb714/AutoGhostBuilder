@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.0
-Date: Jan 31, 2026
+Date: Feb 1, 2026
   Features:
     - Upgrade planner support: automatically builds ghosts with modules.
     - Shows which items are missing when you don't have everything needed.
@@ -8,6 +8,8 @@ Date: Jan 31, 2026
     - Fixed: no longer consumes items from Factorissimo 3 or Packing Tape (preserves metadata).
     - Fixed: modules not being found in inventory.
     - Fixed: error messages showing technical details instead of item names.
+    - Fixed: modules now inserted into constructed entities.
+    - Fixed: item-request-proxy ghosts removed after construction.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.5
 Date: Oct 27, 2024

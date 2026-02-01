@@ -3,8 +3,8 @@
 
 local GhostBuilder = require("src.core.ghost-builder")
 
--- Tests are loaded automatically when test-harness module is required by RCON
-require("src.tests.test-harness")
+-- Tests are loaded automatically in development (excluded from release builds)
+pcall(require, "src.tests.test-harness")
 
 -- Event for handling the shortcut press directly
 script.on_event(defines.events.on_lua_shortcut, function(event)

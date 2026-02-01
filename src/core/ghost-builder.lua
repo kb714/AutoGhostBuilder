@@ -93,7 +93,8 @@ function GhostBuilder.check_all_items_available(ghost_entity, player)
                 name = item.name,
                 quality = ghost_entity.quality,
                 count = 1,
-                source = source
+                source = source,
+                is_module = false
             })
             if not source then
                 table.insert(missing_items, {
@@ -145,7 +146,8 @@ function GhostBuilder.check_all_items_available(ghost_entity, player)
                 name = item_name,
                 quality = item_quality,
                 count = count,
-                available = available_count
+                available = available_count,
+                is_module = true
             })
 
             if available_count < count then
@@ -317,6 +319,33 @@ function GhostBuilder.try_build_ghost(player, ghost_entity)
             time_to_live = 600
         })
         return false
+    end
+
+    -- Insert modules into the constructed entity
+    if entity and entity.valid then
+        for _, item in ipairs(items_removed) do
+            -- Only insert items marked as modules
+            if item.is_module then
+                local inserted = entity.insert({ name = item.name, count = item.count, quality = item.quality })
+                if inserted < item.count then
+                    -- Failed to insert all modules, return the remaining
+                    local remaining = item.count - inserted
+                    player.insert({ name = item.name, count = remaining, quality = item.quality })
+                end
+            end
+        end
+
+        -- Remove item-request-proxy if it exists (created automatically by revive)
+        local proxies = entity.surface.find_entities_filtered{
+            name = "item-request-proxy",
+            position = entity.position,
+            force = entity.force
+        }
+        for _, proxy in pairs(proxies) do
+            if proxy.proxy_target == entity then
+                proxy.destroy()
+            end
+        end
     end
 
     return true
