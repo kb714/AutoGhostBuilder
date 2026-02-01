@@ -53,6 +53,7 @@ cp info.json "${BUILD_DIR}/"
 cp control.lua "${BUILD_DIR}/"
 cp data.lua "${BUILD_DIR}/"
 cp changelog.txt "${BUILD_DIR}/"
+cp thumbnail.png "${BUILD_DIR}/"
 cp -r locale "${BUILD_DIR}/"
 cp -r graphics "${BUILD_DIR}/"
 cp -r src "${BUILD_DIR}/"
@@ -63,16 +64,28 @@ rm -rf "${BUILD_DIR}/src/tests"
 
 # Create zip file
 echo "Creating ${ZIP_NAME}..."
+
+# Try different zip utilities in order of preference
 if command -v zip &> /dev/null; then
     zip -r "${ZIP_NAME}" "${BUILD_DIR}"
 elif command -v 7z &> /dev/null; then
-    # Fallback to 7z if zip is not available
     7z a -tzip "${ZIP_NAME}" "${BUILD_DIR}"
-elif command -v powershell.exe &> /dev/null; then
-    # Fallback to PowerShell on Windows
-    powershell.exe -Command "Compress-Archive -Path '${BUILD_DIR}' -DestinationPath '${ZIP_NAME}' -Force"
+elif [ -n "${SEVENZIP_PATH}" ] && [ -f "${SEVENZIP_PATH}" ]; then
+    # Use custom 7-Zip path from environment variable
+    "${SEVENZIP_PATH}" a -tzip "${ZIP_NAME}" "${BUILD_DIR}"
+elif [ -f "/c/Program Files/7-Zip/7z.exe" ]; then
+    "/c/Program Files/7-Zip/7z.exe" a -tzip "${ZIP_NAME}" "${BUILD_DIR}"
+elif [ -f "/c/Program Files (x86)/7-Zip/7z.exe" ]; then
+    "/c/Program Files (x86)/7-Zip/7z.exe" a -tzip "${ZIP_NAME}" "${BUILD_DIR}"
 else
-    echo "Error: No zip utility found. Please install zip, 7z, or use PowerShell on Windows."
+    echo "Error: No compatible zip utility found."
+    echo "PowerShell Compress-Archive is NOT compatible with Factorio mod portal (uses backslashes)."
+    echo ""
+    echo "Solutions:"
+    echo "  1. Install 7-Zip from: https://www.7-zip.org/"
+    echo "  2. Install zip via: choco install zip"
+    echo "  3. Set SEVENZIP_PATH environment variable to your 7z.exe location"
+    echo "     Example: export SEVENZIP_PATH='/c/custom/path/7z.exe'"
     exit 1
 fi
 
