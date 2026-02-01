@@ -8,6 +8,13 @@ data:extend{
         consuming = "none",
     },
     {
+        type = "custom-input",
+        name = "ghost-builder-on-build-click",
+        key_sequence = "",
+        linked_game_control = "build",
+        consuming = "none",
+    },
+    {
         type = "shortcut",
         name = "ghost-builder-toggle",
         order = "a[ghost]-b[builder]",

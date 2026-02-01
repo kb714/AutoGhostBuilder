@@ -1,6 +1,6 @@
 {
   "name": "auto-ghost-builder",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "dependencies": {
     "rcon-client": "^4.2.3"
