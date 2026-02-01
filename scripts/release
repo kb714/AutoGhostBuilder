@@ -1,0 +1,88 @@
+#!/bin/bash
+set -e
+
+# Check if version parameter is provided
+if [ -z "$1" ]; then
+    echo "Usage: script/release <version>"
+    echo "Example: script/release 0.2.0"
+    exit 1
+fi
+
+VERSION=$1
+MOD_NAME="AutoGhostBuilder"
+BUILD_DIR="${MOD_NAME}_${VERSION}"
+RELEASE_DIR="release"
+ZIP_NAME="${RELEASE_DIR}/${BUILD_DIR}.zip"
+
+echo "Building release for ${MOD_NAME} version ${VERSION}"
+
+# Update version in info.json
+echo "Updating info.json..."
+if command -v jq &> /dev/null; then
+    # Use jq if available
+    jq ".version = \"${VERSION}\"" info.json > info.json.tmp && mv info.json.tmp info.json
+else
+    # Fallback to sed
+    sed -i.bak "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" info.json && rm info.json.bak
+fi
+
+# Update version in package.json
+if [ -f package.json ]; then
+    echo "Updating package.json..."
+    if command -v jq &> /dev/null; then
+        jq ".version = \"${VERSION}\"" package.json > package.json.tmp && mv package.json.tmp package.json
+    else
+        sed -i.bak "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" package.json && rm package.json.bak
+    fi
+fi
+
+# Create release directory if it doesn't exist
+mkdir -p "${RELEASE_DIR}"
+
+# Clean previous build
+echo "Cleaning previous builds..."
+rm -rf "${BUILD_DIR}" "${ZIP_NAME}"
+
+# Create build directory
+echo "Creating build directory..."
+mkdir -p "${BUILD_DIR}"
+
+# Copy mod files (exclude development files)
+echo "Copying mod files..."
+cp info.json "${BUILD_DIR}/"
+cp control.lua "${BUILD_DIR}/"
+cp data.lua "${BUILD_DIR}/"
+cp changelog.txt "${BUILD_DIR}/"
+cp -r locale "${BUILD_DIR}/"
+cp -r graphics "${BUILD_DIR}/"
+cp -r src "${BUILD_DIR}/"
+
+# Remove test files from src
+echo "Removing test files..."
+rm -rf "${BUILD_DIR}/src/tests"
+
+# Create zip file
+echo "Creating ${ZIP_NAME}..."
+if command -v zip &> /dev/null; then
+    zip -r "${ZIP_NAME}" "${BUILD_DIR}"
+elif command -v 7z &> /dev/null; then
+    # Fallback to 7z if zip is not available
+    7z a -tzip "${ZIP_NAME}" "${BUILD_DIR}"
+elif command -v powershell.exe &> /dev/null; then
+    # Fallback to PowerShell on Windows
+    powershell.exe -Command "Compress-Archive -Path '${BUILD_DIR}' -DestinationPath '${ZIP_NAME}' -Force"
+else
+    echo "Error: No zip utility found. Please install zip, 7z, or use PowerShell on Windows."
+    exit 1
+fi
+
+# Clean up build directory
+echo "Cleaning up..."
+rm -rf "${BUILD_DIR}"
+
+echo ""
+echo "✅ Release ${ZIP_NAME} created successfully!"
+echo ""
+echo "Next steps:"
+echo "1. Test the mod by extracting ${ZIP_NAME} to your Factorio mods folder"
+echo "2. Upload to https://mods.factorio.com"

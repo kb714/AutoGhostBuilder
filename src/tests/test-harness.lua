@@ -56,11 +56,15 @@ local function run_test(name, test_func)
     else
         test_results.failed = test_results.failed + 1
         local msg = "✗ " .. name
-        local err_msg = "  Error: " .. tostring(err)
         game.print("[color=red]" .. msg .. "[/color]")
-        game.print("[color=red]" .. err_msg .. "[/color]")
         log(msg)
-        log(err_msg)
+
+        -- Show detailed error with stack trace
+        local err_msg = tostring(err)
+        for line in err_msg:gmatch("[^\r\n]+") do
+            game.print("[color=red]  " .. line .. "[/color]")
+            log("  " .. line)
+        end
     end
 end
 

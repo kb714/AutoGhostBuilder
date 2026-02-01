@@ -1,0 +1,2 @@
+# Ensure bash scripts always use LF line endings
+scripts/release text eol=lf
