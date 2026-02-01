@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.0
+Date: Feb 1, 2026
+  Features:
+    - Three building modes: Hover (builds on hover), Click (builds on click), and Disabled.
+    - Cycle through modes with Ctrl+G or the shortcut button.
+    - Click mode prevents accidental building while planning blueprints (thanks to ploik21 for the suggestion).
+  Changes:
+    - Improved mode switching UX with clear feedback messages.
+---------------------------------------------------------------------------------------------------
 Version: 0.2.1
 Date: Feb 1, 2026
   Bugfixes:

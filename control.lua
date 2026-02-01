@@ -22,3 +22,8 @@ end)
 script.on_event(defines.events.on_selected_entity_changed, function(event)
     GhostBuilder.on_selected_entity_changed(game.get_player(event.player_index))
 end)
+
+-- Event for click mode - builds when player clicks to build
+script.on_event("ghost-builder-on-build-click", function(event)
+    GhostBuilder.on_build_click(game.get_player(event.player_index))
+end)

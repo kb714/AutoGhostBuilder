@@ -5,35 +5,57 @@
 local GhostBuilder = {}
 
 -- State table accessible for testing
+-- Modes: "disabled", "hover", "click"
 GhostBuilder.state = {
-    enabled = {} -- player_index -> boolean
+    mode = {} -- player_index -> string (mode)
 }
 
---- Check if ghost builder is enabled for a player
+--- Get the current mode for a player
+---@param player_index number
+---@return string mode "disabled", "hover", or "click"
+function GhostBuilder.get_mode(player_index)
+    return GhostBuilder.state.mode[player_index] or "disabled"
+end
+
+--- Check if ghost builder is enabled for a player (any mode except disabled)
 ---@param player_index number
 ---@return boolean
 function GhostBuilder.is_enabled(player_index)
-    return GhostBuilder.state.enabled[player_index] == true
+    local mode = GhostBuilder.get_mode(player_index)
+    return mode == "hover" or mode == "click"
 end
 
---- Toggle ghost builder for a player
+--- Cycle through modes: disabled -> hover -> click -> disabled
 ---@param player_index number
----@param current_value boolean|nil Optional current value, if nil will read from state
----@return boolean new_state The new enabled state
-function GhostBuilder.toggle(player_index, current_value)
-    if current_value == nil then
-        current_value = GhostBuilder.state.enabled[player_index]
+---@return string new_mode The new mode
+function GhostBuilder.toggle(player_index)
+    local current_mode = GhostBuilder.get_mode(player_index)
+    local new_mode
+
+    if current_mode == "disabled" then
+        new_mode = "hover"
+    elseif current_mode == "hover" then
+        new_mode = "click"
+    else -- "click"
+        new_mode = "disabled"
     end
-    local new_state = not current_value
-    GhostBuilder.state.enabled[player_index] = new_state
-    return new_state
+
+    GhostBuilder.state.mode[player_index] = new_mode
+    return new_mode
 end
 
---- Set the enabled state for a player
+--- Set the mode for a player
+---@param player_index number
+---@param mode string "disabled", "hover", or "click"
+function GhostBuilder.set_mode(player_index, mode)
+    GhostBuilder.state.mode[player_index] = mode
+end
+
+--- Legacy compatibility: set enabled state (maps to hover/disabled)
 ---@param player_index number
 ---@param enabled boolean
 function GhostBuilder.set_enabled(player_index, enabled)
-    GhostBuilder.state.enabled[player_index] = enabled
+    GhostBuilder.set_mode(player_index, enabled and "hover" or "disabled")
 end
 
 --- Find an item source (cursor or inventory) that has the required item with quality
@@ -356,16 +378,36 @@ end
 function GhostBuilder.on_toggle(player)
     if not player then return end
 
-    local new_state = GhostBuilder.toggle(player.index)
+    local new_mode = GhostBuilder.toggle(player.index)
 
-    -- Update shortcut button state
-    player.set_shortcut_toggled("ghost-builder-toggle", new_state)
+    -- Update shortcut button state (enabled for hover and click modes)
+    local is_active = (new_mode ~= "disabled")
+    player.set_shortcut_toggled("ghost-builder-toggle", is_active)
 
     -- Provide feedback with localized messages
-    if new_state then
-        player.print({"autoghostbuilder.messages.enabled"})
+    if new_mode == "hover" then
+        player.print({"autoghostbuilder.messages.mode-hover"})
+    elseif new_mode == "click" then
+        player.print({"autoghostbuilder.messages.mode-click"})
     else
         player.print({"autoghostbuilder.messages.disabled"})
+    end
+end
+
+--- Handle build click event (for click mode)
+---@param player LuaPlayer The player who clicked to build
+function GhostBuilder.on_build_click(player)
+    if not player then return end
+
+    local mode = GhostBuilder.get_mode(player.index)
+
+    -- Only process in click mode
+    if mode ~= "click" then return end
+
+    -- Check if hovering over a ghost
+    local hovered_entity = player.selected
+    if hovered_entity and hovered_entity.name == "entity-ghost" then
+        GhostBuilder.try_build_ghost(player, hovered_entity)
     end
 end
 
@@ -375,12 +417,15 @@ function GhostBuilder.on_selected_entity_changed(player)
     if not player then return end
 
     -- Initialize state from shortcut if not set
-    if GhostBuilder.state.enabled[player.index] == nil then
-        GhostBuilder.state.enabled[player.index] = player.is_shortcut_toggled("ghost-builder-toggle")
+    if GhostBuilder.state.mode[player.index] == nil then
+        local is_toggled = player.is_shortcut_toggled("ghost-builder-toggle")
+        GhostBuilder.state.mode[player.index] = is_toggled and "hover" or "disabled"
     end
 
-    -- Check if enabled
-    if not GhostBuilder.is_enabled(player.index) then return end
+    local mode = GhostBuilder.get_mode(player.index)
+
+    -- Only process in hover mode (click mode is handled by build event)
+    if mode ~= "hover" then return end
 
     -- Check if hovering over a ghost
     local hovered_entity = player.selected
@@ -391,7 +436,7 @@ end
 
 --- Reset state (useful for testing)
 function GhostBuilder.reset_state()
-    GhostBuilder.state.enabled = {}
+    GhostBuilder.state.mode = {}
 end
 
 return GhostBuilder
