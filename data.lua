@@ -1,6 +1,18 @@
 -- data.lua
 
 data:extend{
+    -- Test item for automated testing of item-with-tags protection
+    {
+        type = "item-with-tags",
+        name = "agb-test-tagged-item",
+        icon = "__base__/graphics/icons/iron-chest.png",
+        icon_size = 64,
+        subgroup = "other",
+        order = "z[test]",
+        stack_size = 1,
+        flags = {"not-stackable", "only-in-cursor"},
+        hidden = true,
+    },
     {
         type = "custom-input",
         name = "ghost-builder-toggle",

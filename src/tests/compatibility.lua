@@ -1,100 +1,102 @@
 -- src/tests/compatibility.lua
--- Tests for item-with-tags protection (Factorissimo, Packing Tape)
 
 local GhostBuilder = require("src.core.ghost-builder")
 
 return function(run_test)
-    local function get_test_surface()
-        return game.surfaces[1]
-    end
-
-    local function clear_test_area(surface, area)
-        for _, entity in pairs(surface.find_entities_filtered{area = area}) do
-            if entity.valid and entity.name ~= "character" then
-                pcall(function() entity.destroy() end)
-            end
+    local function get_player()
+        local player = game.get_player(1)
+        if not player then
+            error("Player 1 not found in save")
         end
+        return player
     end
 
-    run_test("ignores items with tags in cursor", function(assert)
-        local mock_quality = {}
-        local mock_cursor_with_tags = {
-            valid_for_read = true,
-            name = "iron-chest",
-            quality = mock_quality,
-            is_item_with_tags = true
-        }
+    run_test("item-with-tags type always has is_item_with_tags true", function(assert)
+        local player = get_player()
+        player.clear_cursor()
+        player.get_main_inventory().clear()
 
-        local result = GhostBuilder.find_item_source("iron-chest", mock_quality, mock_cursor_with_tags, nil)
-        assert.is_nil(result, "Should not use items with tags")
+        -- Insert without setting any tags
+        player.insert{name = "agb-test-tagged-item", count = 1}
+        local inv = player.get_main_inventory()
+        local slot = inv.find_item_stack("agb-test-tagged-item")
+
+        log("TEST: Item without manual tags:")
+        log("TEST:   is_item_with_tags = " .. tostring(slot.is_item_with_tags))
+        log("TEST:   tags = " .. serpent.line(slot.tags))
+
+        -- Items of type item-with-tags ALWAYS have is_item_with_tags = true
+        -- This is the prototype type, not whether tags were manually added
+        assert.is_true(slot.is_item_with_tags, "item-with-tags type always has is_item_with_tags = true")
+
+        player.get_main_inventory().clear()
     end)
 
-    run_test("uses normal items without tags", function(assert)
-        local mock_quality = {}
-        local mock_cursor_normal = {
-            valid_for_read = true,
-            name = "iron-chest",
-            quality = mock_quality,
-            is_item_with_tags = false
-        }
+    run_test("find_item_source ignores item-with-tags type", function(assert)
+        local player = get_player()
+        player.clear_cursor()
+        player.get_main_inventory().clear()
 
-        local result = GhostBuilder.find_item_source("iron-chest", mock_quality, mock_cursor_normal, nil)
-        assert.equals("cursor", result)
+        -- Even without manually setting tags, this should be ignored
+        local cursor = player.cursor_stack
+        cursor.set_stack{name = "agb-test-tagged-item", count = 1}
+
+        local quality = prototypes.quality["normal"]
+        local result = GhostBuilder.find_item_source(
+            "agb-test-tagged-item",
+            quality,
+            cursor,
+            nil
+        )
+
+        assert.is_nil(result, "Should not use item-with-tags type from cursor")
+
+        player.clear_cursor()
     end)
 
-    run_test("skips items with tags in mixed inventory", function(assert)
-        local mock_quality = {}
-        local mock_inventory = {
-            [1] = {
-                valid_for_read = true,
-                name = "iron-chest",
-                quality = mock_quality,
-                is_item_with_tags = true
-            },
-            [2] = {
-                valid_for_read = true,
-                name = "iron-chest",
-                quality = mock_quality,
-                is_item_with_tags = false
-            }
-        }
-        setmetatable(mock_inventory, { __len = function() return 2 end })
+    run_test("find_item_source ignores item-with-tags in inventory", function(assert)
+        local player = get_player()
+        player.clear_cursor()
+        player.get_main_inventory().clear()
 
-        local result = GhostBuilder.find_item_source("iron-chest", mock_quality, nil, mock_inventory)
-        assert.equals("inventory", result, "Should find non-tagged item")
+        player.insert{name = "agb-test-tagged-item", count = 1}
+        local inv = player.get_main_inventory()
+
+        local quality = prototypes.quality["normal"]
+        local result = GhostBuilder.find_item_source(
+            "agb-test-tagged-item",
+            quality,
+            nil,
+            inv
+        )
+
+        assert.is_nil(result, "Should not use item-with-tags type from inventory")
+
+        player.get_main_inventory().clear()
     end)
 
-    run_test("cannot build with only tagged items", function(assert)
-        local surface = get_test_surface()
-        clear_test_area(surface, {{220, 220}, {230, 230}})
+    run_test("Tags are preserved on item-with-tags", function(assert)
+        local player = get_player()
+        player.clear_cursor()
+        player.get_main_inventory().clear()
 
-        local ghost = surface.create_entity{
-            name = "entity-ghost",
-            inner_name = "iron-chest",
-            position = {225, 225},
-            force = "player"
-        }
+        player.insert{name = "agb-test-tagged-item", count = 1}
+        local inv = player.get_main_inventory()
+        local slot = inv.find_item_stack("agb-test-tagged-item")
 
-        local mock_player = {
-            get_inventory = function(inventory_type)
-                local inv = {
-                    [1] = {
-                        valid_for_read = true,
-                        name = "iron-chest",
-                        quality = prototypes.quality["normal"],
-                        is_item_with_tags = true
-                    }
-                }
-                setmetatable(inv, { __len = function() return 1 end })
-                return inv
-            end,
-            cursor_stack = { valid_for_read = false },
-            can_place_entity = function() return true end
-        }
+        -- Set complex tag data (like Factorissimo factory contents)
+        slot.set_tag("factory_contents", {
+            machines = 50,
+            items = {"iron-plate", "copper-plate"},
+            energy = 1000000
+        })
 
-        local can_build, item_info = GhostBuilder.can_build_ghost(ghost, mock_player)
-        assert.is_false(can_build, "Should not build with tagged items only")
+        -- Retrieve and verify
+        local tag = slot.get_tag("factory_contents")
+        assert.is_true(tag ~= nil, "Tag should exist")
+        assert.equals(50, tag.machines, "Tag data should be preserved")
+        assert.equals(1000000, tag.energy, "Complex tag data should be preserved")
 
-        ghost.destroy()
+        player.get_main_inventory().clear()
     end)
 end

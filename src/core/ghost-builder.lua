@@ -202,14 +202,8 @@ function GhostBuilder.can_build_ghost(ghost_entity, player)
         return false, nil
     end
 
-    -- Check if player can place the entity
-    if not player.can_place_entity({
-        name = ghost_entity.ghost_name,
-        position = ghost_entity.position,
-        direction = ghost_entity.direction
-    }) then
-        return false, nil
-    end
+    -- Note: We skip player.can_place_entity() check because the ghost itself
+    -- blocks placement. The revive() method handles placement validation internally.
 
     -- Check for ALL required items (entity + modules from upgrade planner)
     local all_available, missing_items, required_items = GhostBuilder.check_all_items_available(ghost_entity, player)

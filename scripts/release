@@ -71,21 +71,17 @@ if command -v zip &> /dev/null; then
 elif command -v 7z &> /dev/null; then
     7z a -tzip "${ZIP_NAME}" "${BUILD_DIR}"
 elif [ -n "${SEVENZIP_PATH}" ] && [ -f "${SEVENZIP_PATH}" ]; then
-    # Use custom 7-Zip path from environment variable
     "${SEVENZIP_PATH}" a -tzip "${ZIP_NAME}" "${BUILD_DIR}"
 elif [ -f "/c/Program Files/7-Zip/7z.exe" ]; then
     "/c/Program Files/7-Zip/7z.exe" a -tzip "${ZIP_NAME}" "${BUILD_DIR}"
 elif [ -f "/c/Program Files (x86)/7-Zip/7z.exe" ]; then
     "/c/Program Files (x86)/7-Zip/7z.exe" a -tzip "${ZIP_NAME}" "${BUILD_DIR}"
+elif [ -f "C:/Program Files/7-Zip/7z.exe" ]; then
+    "C:/Program Files/7-Zip/7z.exe" a -tzip "${ZIP_NAME}" "${BUILD_DIR}"
+elif [ -f "C:/Program Files (x86)/7-Zip/7z.exe" ]; then
+    "C:/Program Files (x86)/7-Zip/7z.exe" a -tzip "${ZIP_NAME}" "${BUILD_DIR}"
 else
-    echo "Error: No compatible zip utility found."
-    echo "PowerShell Compress-Archive is NOT compatible with Factorio mod portal (uses backslashes)."
-    echo ""
-    echo "Solutions:"
-    echo "  1. Install 7-Zip from: https://www.7-zip.org/"
-    echo "  2. Install zip via: choco install zip"
-    echo "  3. Set SEVENZIP_PATH environment variable to your 7z.exe location"
-    echo "     Example: export SEVENZIP_PATH='/c/custom/path/7z.exe'"
+    echo "Error: No zip utility found. Install 7-Zip: https://www.7-zip.org/"
     exit 1
 fi
 

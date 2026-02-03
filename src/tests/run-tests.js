@@ -8,7 +8,9 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration
-const FACTORIO_PATH = process.env.FACTORIO_PATH || 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Factorio\\bin\\x64\\factorio.exe';
+const CONFIG_FILE = path.join(__dirname, '..', '..', '.local-config.json');
+const config = fs.existsSync(CONFIG_FILE) ? JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')) : {};
+const FACTORIO_PATH = process.env.FACTORIO_PATH || config.factorio || 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Factorio\\bin\\x64\\factorio.exe';
 const MOD_SOURCE_DIR = path.resolve(__dirname, '..', '..');
 const TEMP_DIR = path.join(require('os').tmpdir(), 'factorio-test');
 const TEST_MODS_DIR = path.join(TEMP_DIR, 'mods');
@@ -27,21 +29,16 @@ if (!fs.existsSync(TEST_MODS_DIR)) {
     fs.mkdirSync(TEST_MODS_DIR, { recursive: true });
 }
 
-// Kill any existing Factorio processes
 function killExistingFactorio() {
     try {
-        console.log('🧹 Cleaning up existing Factorio processes...');
         execSync('taskkill /F /IM factorio.exe', { stdio: 'ignore' });
-        // Wait for process to fully terminate
         return new Promise(resolve => setTimeout(resolve, 1000));
     } catch (e) {
-        // No factorio running, continue
         return Promise.resolve();
     }
 }
 
-console.log('🧪 AutoGhostBuilder Test Runner (RCON Mode)');
-console.log('==========================================\n');
+console.log('AutoGhostBuilder Tests\n');
 
 // Clear log file
 if (fs.existsSync(LOG_FILE)) {
@@ -80,65 +77,36 @@ function setupModDirectory() {
     fs.writeFileSync(modListPath, JSON.stringify(modList, null, 2));
 }
 
-// Create a test save with player
 function createTestSave() {
-    console.log('📦 Creating test save file...');
-
     setupModDirectory();
 
-    // Remove old save
     if (fs.existsSync(TEST_SAVE)) {
         fs.unlinkSync(TEST_SAVE);
     }
 
-    return new Promise((resolve, reject) => {
-        const createArgs = [
-            '--create', TEST_SAVE,
-            '--mod-directory', TEST_MODS_DIR,
-            '--map-gen-settings', path.join(__dirname, 'map-gen-settings.json'),
-            '--disable-audio'
-        ];
+    const TEMPLATE_SAVE = path.join(__dirname, 'test-ghost-auto-builder.zip');
+    if (!fs.existsSync(TEMPLATE_SAVE)) {
+        throw new Error(`Template save not found: ${TEMPLATE_SAVE}`);
+    }
 
-        const proc = spawn(`"${FACTORIO_PATH}"`, createArgs, {
-            stdio: 'pipe',
-            shell: true,
-            windowsHide: true
-        });
-
-        let output = '';
-        proc.stdout.on('data', (data) => { output += data.toString(); });
-        proc.stderr.on('data', (data) => { output += data.toString(); });
-
-        proc.on('close', (code) => {
-            if (code === 0 && fs.existsSync(TEST_SAVE)) {
-                console.log('✅ Test save created\n');
-                resolve();
-            } else {
-                console.error('❌ Failed to create test save');
-                console.error(output);
-                reject(new Error('Save creation failed'));
-            }
-        });
-
-        proc.on('error', reject);
-    });
+    fs.copyFileSync(TEMPLATE_SAVE, TEST_SAVE);
 }
 
-// Start Factorio server with RCON
 function startServer() {
-    console.log('🚀 Starting Factorio server with RCON...');
+    console.log('Starting Factorio server...');
 
     return new Promise((resolve, reject) => {
-        const serverArgs = [
-            '--start-server', TEST_SAVE,
-            '--mod-directory', TEST_MODS_DIR,
-            '--server-settings', SERVER_SETTINGS,
+        const command = [
+            `"${FACTORIO_PATH}"`,
+            '--start-server', `"${TEST_SAVE}"`,
+            '--mod-directory', `"${TEST_MODS_DIR}"`,
+            '--server-settings', `"${SERVER_SETTINGS}"`,
             '--rcon-port', RCON_PORT.toString(),
             '--rcon-password', RCON_PASSWORD,
             '--disable-audio'
-        ];
+        ].join(' ');
 
-        const serverProc = spawn(`"${FACTORIO_PATH}"`, serverArgs, {
+        const serverProc = spawn(command, [], {
             stdio: 'pipe',
             shell: true,
             windowsHide: true
@@ -184,34 +152,75 @@ function startServer() {
     });
 }
 
+// Extract and print test output line (only failures)
+function printTestLine(line) {
+    // Match failed test lines: "✗ test name"
+    const failMatch = line.match(/test-harness\.lua:\d+:\s*✗\s*(.+)/);
+    if (failMatch) {
+        console.log(`  \x1b[31m✗ ${failMatch[1]}\x1b[0m`);
+        return true;
+    }
+
+    // Match error detail lines (indented with 2 spaces after test name)
+    const errorDetailMatch = line.match(/test-harness\.lua:\d+:\s{2,}(.+)/);
+    if (errorDetailMatch) {
+        let errorMsg = errorDetailMatch[1];
+        const msgMatch = errorMsg.match(/__\w+__\/.*?:\d+:\s*(.+)/);
+        if (msgMatch) {
+            errorMsg = msgMatch[1];
+        }
+        console.log(`    \x1b[31m${errorMsg}\x1b[0m`);
+        return true;
+    }
+
+    // Match summary line
+    const summaryMatch = line.match(/Tests:\s*(\d+)\s*passed,\s*(\d+)\s*failed,\s*(\d+)\s*total/);
+    if (summaryMatch) {
+        const passed = summaryMatch[1];
+        const failed = summaryMatch[2];
+        const total = summaryMatch[3];
+        if (failed === '0') {
+            console.log(`\x1b[32m${passed} passed\x1b[0m, 0 failed, ${total} total`);
+        } else {
+            console.log(`\n${passed} passed, \x1b[31m${failed} failed\x1b[0m, ${total} total`);
+        }
+        return true;
+    }
+
+    return false;
+}
+
 // Execute tests via RCON
 async function executeTests(serverProc) {
-    console.log('🔌 Connecting to server via RCON...\n');
 
     let rcon;
     let fullOutput = '';
 
-    // Capture ongoing server output
+    // Capture ongoing server output and print test results
     const outputHandler = (data) => {
-        fullOutput += data.toString();
+        const text = data.toString();
+        fullOutput += text;
+
+        // Print test output lines in real-time
+        const lines = text.split('\n');
+        for (const line of lines) {
+            printTestLine(line);
+        }
     };
     serverProc.stdout.on('data', outputHandler);
     serverProc.stderr.on('data', outputHandler);
 
     try {
-        // Wait for server to be fully ready for RCON commands
-        console.log('⏳ Waiting for server to fully initialize...');
         await new Promise(resolve => setTimeout(resolve, 5000));
 
         rcon = await Rcon.connect({
             host: 'localhost',
             port: RCON_PORT,
             password: RCON_PASSWORD,
-            timeout: 10000  // 10 second timeout for RCON commands
+            timeout: 10000
         });
 
-        console.log('✅ RCON connected');
-        console.log('🧪 Running tests...\n');
+        console.log('Running tests...');
 
         // Execute test command
         // Note: Factorio requires sending the command TWICE
@@ -225,15 +234,10 @@ async function executeTests(serverProc) {
             throw err;
         }
 
-        // Wait for tests to complete and output to be written
+        // Wait for tests to complete
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        console.log('📊 Test execution complete\n');
-
-        // Read results from captured output
-        const results = parseTestResults(fullOutput);
-
-        return results;
+        return parseTestResults(fullOutput);
 
     } finally {
         if (rcon) {
@@ -244,26 +248,18 @@ async function executeTests(serverProc) {
             }
         }
 
-        // Kill server forcefully
-        console.log('🛑 Stopping Factorio server...');
         if (serverProc && !serverProc.killed) {
             serverProc.kill('SIGTERM');
             await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Force kill if still running
             if (!serverProc.killed) {
                 serverProc.kill('SIGKILL');
             }
         }
 
-        // Extra cleanup: kill any remaining factorio processes
         try {
             execSync('taskkill /F /IM factorio.exe', { stdio: 'ignore' });
-        } catch (e) {
-            // Ignore if no process found
-        }
+        } catch (e) {}
 
-        console.log('✅ Server stopped');
         await new Promise(resolve => setTimeout(resolve, 500));
     }
 }
@@ -297,22 +293,12 @@ async function main() {
 
         const results = await executeTests(serverProc);
 
-        console.log('================================');
-        console.log('📊 Test Results');
-        console.log('================================');
-        console.log(`Passed: ${results.passed}`);
-        console.log(`Failed: ${results.failed}`);
-        console.log(`Total:  ${results.total}`);
-        console.log('================================\n');
-
         if (results.failed > 0) {
-            console.log('❌ TESTS FAILED');
             process.exit(1);
         } else if (results.passed > 0) {
-            console.log('✅ ALL TESTS PASSED');
             process.exit(0);
         } else {
-            console.log('⚠️  NO TESTS FOUND OR ERROR');
+            console.log('\x1b[33mNo tests found\x1b[0m');
             process.exit(1);
         }
 

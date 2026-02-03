@@ -1,11 +1,13 @@
 {
   "name": "auto-ghost-builder",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "dependencies": {
     "rcon-client": "^4.2.3"
   },
   "scripts": {
-    "test": "node src/tests/run-tests.js"
+    "test": "node src/tests/run-tests.js",
+    "setup": "node scripts/setup.js",
+    "release": "node scripts/release.js"
   }
 }

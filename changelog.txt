@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.1
+Date: Feb 3, 2026
+  Internal:
+    - Added automated test suite (16 tests) using RCON.
+    - Added tests for item-with-tags protection (Factorissimo, Packing Tape compatibility).
+---------------------------------------------------------------------------------------------------
 Version: 0.3.0
 Date: Feb 1, 2026
   Features:
