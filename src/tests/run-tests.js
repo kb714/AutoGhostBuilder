@@ -8,7 +8,9 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration
-const FACTORIO_PATH = process.env.FACTORIO_PATH || 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Factorio\\bin\\x64\\factorio.exe';
+const CONFIG_FILE = path.join(__dirname, '..', '..', '.local-config.json');
+const config = fs.existsSync(CONFIG_FILE) ? JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')) : {};
+const FACTORIO_PATH = process.env.FACTORIO_PATH || config.factorio || 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Factorio\\bin\\x64\\factorio.exe';
 const MOD_SOURCE_DIR = path.resolve(__dirname, '..', '..');
 const TEMP_DIR = path.join(require('os').tmpdir(), 'factorio-test');
 const TEST_MODS_DIR = path.join(TEMP_DIR, 'mods');

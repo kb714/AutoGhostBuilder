@@ -5,7 +5,9 @@
   "title": "Auto Ghost Builder",
   "author": "yirazk",
   "description": "Automatically builds ghost entities when hovered over, if the player has the item in inventory. Toggleable with a shortcut.",
-  "dependencies": ["base >= 2.0"],
+  "dependencies": [
+    "base >= 2.0"
+  ],
   "control_input": {
     "name": "ghost-builder-toggle",
     "type": "custom-input",
