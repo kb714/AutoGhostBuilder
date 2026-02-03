@@ -91,37 +91,16 @@ function createTestSave() {
         fs.unlinkSync(TEST_SAVE);
     }
 
-    return new Promise((resolve, reject) => {
-        const createArgs = [
-            '--create', TEST_SAVE,
-            '--mod-directory', TEST_MODS_DIR,
-            '--map-gen-settings', path.join(__dirname, 'map-gen-settings.json'),
-            '--disable-audio'
-        ];
+    // Use pre-made save with player instead of creating new one
+    const TEMPLATE_SAVE = path.join(__dirname, 'test-ghost-auto-builder.zip');
 
-        const proc = spawn(`"${FACTORIO_PATH}"`, createArgs, {
-            stdio: 'pipe',
-            shell: true,
-            windowsHide: true
-        });
+    if (!fs.existsSync(TEMPLATE_SAVE)) {
+        throw new Error(`Template save not found: ${TEMPLATE_SAVE}`);
+    }
 
-        let output = '';
-        proc.stdout.on('data', (data) => { output += data.toString(); });
-        proc.stderr.on('data', (data) => { output += data.toString(); });
-
-        proc.on('close', (code) => {
-            if (code === 0 && fs.existsSync(TEST_SAVE)) {
-                console.log('✅ Test save created\n');
-                resolve();
-            } else {
-                console.error('❌ Failed to create test save');
-                console.error(output);
-                reject(new Error('Save creation failed'));
-            }
-        });
-
-        proc.on('error', reject);
-    });
+    console.log('📋 Copying template save with player...');
+    fs.copyFileSync(TEMPLATE_SAVE, TEST_SAVE);
+    console.log('✅ Test save created\n');
 }
 
 // Start Factorio server with RCON

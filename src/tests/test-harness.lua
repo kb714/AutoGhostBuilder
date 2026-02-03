@@ -89,7 +89,7 @@ function run_all_tests()
     game.print("\n[Item Requests & Upgrade Planner]")
     item_requests_tests(run_test)
 
-    game.print("\n[Compatibility & Edge Cases]")
+    game.print("\n[Compatibility]")
     compatibility_tests(run_test)
 
     game.print("========================================")
