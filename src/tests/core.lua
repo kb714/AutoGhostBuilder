@@ -198,6 +198,40 @@ return function(run_test)
     end)
 
     reset()
+    run_test("Does not build ghost outside player build distance", function(assert)
+        local player = get_player()
+        local surface = player.surface
+        local area = {{40, 50}, {55, 55}}
+        clear_area(surface, area)
+
+        GhostBuilder.set_mode(1, "hover")
+        player.clear_cursor()
+        player.get_main_inventory().clear()
+        player.insert{name = "iron-chest", count = 1}
+
+        -- Simulate real game build_distance (6 tiles default character)
+        GhostBuilder._build_distance_override = 6
+
+        -- Place ghost at 20 tiles from player (well beyond build_distance of 6)
+        local ghost = surface.create_entity{
+            name = "entity-ghost",
+            inner_name = "iron-chest",
+            position = {player.position.x + 20, player.position.y},
+            force = player.force
+        }
+
+        GhostBuilder.try_build_ghost(player, ghost)
+
+        assert.is_true(ghost.valid, "Ghost should NOT be built when out of reach")
+        assert.equals(1, player.get_main_inventory().get_item_count("iron-chest"),
+            "Item should NOT be consumed for out-of-reach ghost")
+
+        GhostBuilder._build_distance_override = nil
+        clear_area(surface, area)
+        player.get_main_inventory().clear()
+    end)
+
+    reset()
     run_test("Does not build without required items", function(assert)
         local player = get_player()
         local surface = player.surface

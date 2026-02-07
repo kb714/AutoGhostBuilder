@@ -22,7 +22,8 @@ When enabled, AutoGhostBuilder automatically constructs ghosts when you have the
 - **Upgrade planner support** - automatically inserts modules when building
 - **Quality matching** - respects quality requirements on ghosts
 - **Safe item handling** - never consumes items with metadata
-- **Clear feedback** - shows which items are missing when you can't build
+- **Smart feedback** - shows which items are missing or if ghosts are out of range
+- **Configurable feedback** - mute or enable missing items messages per player (Settings > Mod Settings > Per Player)
 
 ## When to use each mode
 
@@ -40,11 +41,20 @@ When enabled, AutoGhostBuilder automatically constructs ghosts when you have the
 - When you want full manual control
 - After getting construction bots
 
+## Configuration
+
+**Feedback Settings** (per player):
+- Go to Settings > Mod Settings > Per Player
+- Find "Missing items feedback"
+- Choose **Active** to see floating text when hovering over unbuildable ghosts
+- Choose **Muted** to disable all feedback messages
+
 ## Requirements
 
 - Factorio 2.0 or higher
 - Items must be in your inventory or cursor
 - Ghosts must match the quality of items you have
+- Ghosts must be within your build distance
 
 ## Installation
 

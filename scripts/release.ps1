@@ -43,6 +43,7 @@ Write-Host "Copying mod files..." -ForegroundColor Yellow
 Copy-Item "info.json" "$BUILD_DIR\"
 Copy-Item "control.lua" "$BUILD_DIR\"
 Copy-Item "data.lua" "$BUILD_DIR\"
+Copy-Item "settings.lua" "$BUILD_DIR\"
 Copy-Item "changelog.txt" "$BUILD_DIR\"
 Copy-Item -Recurse "locale" "$BUILD_DIR\"
 Copy-Item -Recurse "graphics" "$BUILD_DIR\"

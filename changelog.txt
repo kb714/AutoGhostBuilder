@@ -1,8 +1,23 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.2
+Date: Feb 7, 2026
+  Bugfixes:
+    - Fixed: "Missing items" message spamming the screen when hovering over multiple ghosts without items.
+    - Fixed: ghosts could be built beyond player's build distance at wide zoom levels.
+  Features:
+    - Duplicate feedback is suppressed for 3 seconds when hovering over ghosts missing the same items.
+    - Continuous hover extends the suppression timer (resets only after 3s of inactivity).
+    - Each missing item type has an independent cooldown (alternating between items doesn't spam).
+    - Added "Missing items feedback" setting in Mod Settings > Per Player (Active or Muted).
+    - Added "Out of build range" feedback message with same cooldown behavior.
+  Internal:
+    - Added feedback spam prevention tests with time simulation.
+    - Added build distance validation test.
+---------------------------------------------------------------------------------------------------
 Version: 0.3.1
 Date: Feb 3, 2026
   Internal:
-    - Added automated test suite (16 tests) using RCON.
+    - Added automated test suite using RCON.
     - Added tests for item-with-tags protection (Factorissimo, Packing Tape compatibility).
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.0
