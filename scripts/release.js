@@ -65,7 +65,7 @@ function main() {
 
     // Copy files
     console.log('Copying files...');
-    const filesToCopy = ['info.json', 'control.lua', 'data.lua', 'changelog.txt', 'thumbnail.png'];
+    const filesToCopy = ['info.json', 'control.lua', 'data.lua', 'settings.lua', 'changelog.txt', 'thumbnail.png'];
     const dirsToCopy = ['locale', 'graphics', 'src'];
 
     for (const file of filesToCopy) {

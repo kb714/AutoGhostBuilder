@@ -6,6 +6,19 @@ local GhostBuilder = require("src.core.ghost-builder")
 -- Tests are loaded automatically in development (excluded from release builds)
 pcall(require, "src.tests.test-harness")
 
+-- Sync feedback mode from mod settings for a player
+local function sync_feedback_setting(player_index)
+    local value = settings.get_player_settings(player_index)["agb-feedback-mode"].value
+    GhostBuilder.set_feedback_mode(player_index, value)
+end
+
+-- Update feedback mode when player changes mod settings
+script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
+    if event.setting == "agb-feedback-mode" then
+        sync_feedback_setting(event.player_index)
+    end
+end)
+
 -- Event for handling the shortcut press directly
 script.on_event(defines.events.on_lua_shortcut, function(event)
     if event.prototype_name == "ghost-builder-toggle" then
@@ -16,6 +29,11 @@ end)
 -- Event for handling the custom key input (e.g., CONTROL + G)
 script.on_event("ghost-builder-toggle", function(event)
     GhostBuilder.on_toggle(game.get_player(event.player_index))
+end)
+
+-- Sync feedback setting when player joins
+script.on_event(defines.events.on_player_joined_game, function(event)
+    sync_feedback_setting(event.player_index)
 end)
 
 -- Event for checking and building ghosts

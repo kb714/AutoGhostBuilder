@@ -6,8 +6,13 @@ local GhostBuilder = {}
 
 -- State table accessible for testing
 -- Modes: "disabled", "hover", "click"
+local FEEDBACK_COOLDOWN_TICKS = 180 -- 3 seconds at 60 UPS
+
 GhostBuilder.state = {
-    mode = {} -- player_index -> string (mode)
+    mode = {}, -- player_index -> string (mode)
+    feedback_mode = {}, -- player_index -> "active" or "muted"
+    feedback_count = {}, -- player_index -> number (for testing feedback spam)
+    last_feedback = {} -- player_index -> { [message_key] = tick }
 }
 
 --- Get the current mode for a player
@@ -49,6 +54,47 @@ end
 ---@param mode string "disabled", "hover", or "click"
 function GhostBuilder.set_mode(player_index, mode)
     GhostBuilder.state.mode[player_index] = mode
+end
+
+--- Set feedback mode for a player
+---@param player_index number
+---@param mode string "active" or "muted"
+function GhostBuilder.set_feedback_mode(player_index, mode)
+    GhostBuilder.state.feedback_mode[player_index] = mode
+end
+
+--- Get feedback mode for a player (defaults to "active")
+---@param player_index number
+---@return string mode "active" or "muted"
+function GhostBuilder.get_feedback_mode(player_index)
+    return GhostBuilder.state.feedback_mode[player_index] or "active"
+end
+
+--- Check if feedback should be shown (suppresses duplicates within cooldown)
+---@param player_index number
+---@param message_key string The feedback message to compare
+---@return boolean should_show
+function GhostBuilder.should_show_feedback(player_index, message_key)
+    if GhostBuilder.get_feedback_mode(player_index) == "muted" then
+        return false
+    end
+
+    local player_feedback = GhostBuilder.state.last_feedback[player_index]
+    if not player_feedback then
+        player_feedback = {}
+        GhostBuilder.state.last_feedback[player_index] = player_feedback
+    end
+
+    local current_tick = GhostBuilder._tick_override or game.tick
+    local last_tick = player_feedback[message_key]
+
+    if last_tick and (current_tick - last_tick) < FEEDBACK_COOLDOWN_TICKS then
+        player_feedback[message_key] = current_tick
+        return false
+    end
+
+    player_feedback[message_key] = current_tick
+    return true
 end
 
 --- Legacy compatibility: set enabled state (maps to hover/disabled)
@@ -270,6 +316,28 @@ end
 ---@param ghost_entity LuaEntity The ghost entity to build
 ---@return boolean success Whether the ghost was built successfully
 function GhostBuilder.try_build_ghost(player, ghost_entity)
+    local build_dist = GhostBuilder._build_distance_override
+    if not build_dist and player.connected then
+        build_dist = player.build_distance
+    end
+    if build_dist and build_dist > 0 then
+        local dx = player.position.x - ghost_entity.position.x
+        local dy = player.position.y - ghost_entity.position.y
+        if (dx * dx + dy * dy) > build_dist * build_dist then
+            local message_key = "out-of-reach"
+            if GhostBuilder.should_show_feedback(player.index, message_key) then
+                GhostBuilder.state.feedback_count[player.index] = (GhostBuilder.state.feedback_count[player.index] or 0) + 1
+                player.create_local_flying_text({
+                    text = {"autoghostbuilder.messages.out-of-reach"},
+                    position = player.position,
+                    color = { r = 1, g = 0.5, b = 0 },
+                    time_to_live = 600
+                })
+            end
+            return false
+        end
+    end
+
     local can_build, item_info = GhostBuilder.can_build_ghost(ghost_entity, player)
 
     if not can_build and item_info and item_info.missing_items then
@@ -286,12 +354,16 @@ function GhostBuilder.try_build_ghost(player, ghost_entity)
             table.insert(missing_list, item.count .. "x " .. item.name .. " (" .. quality_name .. ")")
         end
 
-        player.create_local_flying_text({
-            text = {"autoghostbuilder.messages.missing-multiple-items", table.concat(missing_list, ", ")},
-            position = player.position,
-            color = { r = 1, g = 0.5, b = 0 },
-            time_to_live = 600
-        })
+        local message_key = table.concat(missing_list, ", ")
+        if GhostBuilder.should_show_feedback(player.index, message_key) then
+            GhostBuilder.state.feedback_count[player.index] = (GhostBuilder.state.feedback_count[player.index] or 0) + 1
+            player.create_local_flying_text({
+                text = {"autoghostbuilder.messages.missing-multiple-items", message_key},
+                position = player.position,
+                color = { r = 1, g = 0.5, b = 0 },
+                time_to_live = 600
+            })
+        end
         return false
     end
 
@@ -431,6 +503,9 @@ end
 --- Reset state (useful for testing)
 function GhostBuilder.reset_state()
     GhostBuilder.state.mode = {}
+    GhostBuilder.state.feedback_mode = {}
+    GhostBuilder.state.feedback_count = {}
+    GhostBuilder.state.last_feedback = {}
 end
 
 return GhostBuilder
