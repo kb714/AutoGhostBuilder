@@ -7,7 +7,9 @@ local GhostBuilder = {}
 -- State table accessible for testing
 -- Modes: "disabled", "hover", "click"
 GhostBuilder.state = {
-    mode = {} -- player_index -> string (mode)
+    mode = {}, -- player_index -> string (mode)
+    feedback_mode = {}, -- player_index -> "active" or "muted"
+    feedback_count = {} -- player_index -> number (for testing feedback spam)
 }
 
 --- Get the current mode for a player
@@ -49,6 +51,20 @@ end
 ---@param mode string "disabled", "hover", or "click"
 function GhostBuilder.set_mode(player_index, mode)
     GhostBuilder.state.mode[player_index] = mode
+end
+
+--- Set feedback mode for a player
+---@param player_index number
+---@param mode string "active" or "muted"
+function GhostBuilder.set_feedback_mode(player_index, mode)
+    GhostBuilder.state.feedback_mode[player_index] = mode
+end
+
+--- Get feedback mode for a player (defaults to "active")
+---@param player_index number
+---@return string mode "active" or "muted"
+function GhostBuilder.get_feedback_mode(player_index)
+    return GhostBuilder.state.feedback_mode[player_index] or "active"
 end
 
 --- Legacy compatibility: set enabled state (maps to hover/disabled)
@@ -286,6 +302,7 @@ function GhostBuilder.try_build_ghost(player, ghost_entity)
             table.insert(missing_list, item.count .. "x " .. item.name .. " (" .. quality_name .. ")")
         end
 
+        GhostBuilder.state.feedback_count[player.index] = (GhostBuilder.state.feedback_count[player.index] or 0) + 1
         player.create_local_flying_text({
             text = {"autoghostbuilder.messages.missing-multiple-items", table.concat(missing_list, ", ")},
             position = player.position,
@@ -431,6 +448,8 @@ end
 --- Reset state (useful for testing)
 function GhostBuilder.reset_state()
     GhostBuilder.state.mode = {}
+    GhostBuilder.state.feedback_mode = {}
+    GhostBuilder.state.feedback_count = {}
 end
 
 return GhostBuilder

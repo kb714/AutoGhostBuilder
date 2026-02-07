@@ -71,6 +71,7 @@ end
 local core_tests = require("src.tests.core")
 local item_requests_tests = require("src.tests.item-requests")
 local compatibility_tests = require("src.tests.compatibility")
+local feedback_tests = require("src.tests.feedback")
 
 function run_all_tests()
     test_results.passed = 0
@@ -91,6 +92,9 @@ function run_all_tests()
 
     game.print("\n[Compatibility]")
     compatibility_tests(run_test)
+
+    game.print("\n[Feedback Spam]")
+    feedback_tests(run_test)
 
     game.print("========================================")
     local summary = string.format("Tests: %d passed, %d failed, %d total",
