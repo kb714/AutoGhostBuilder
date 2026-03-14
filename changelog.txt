@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.3
+Date: Mar 14, 2026
+  Bugfixes:
+    - Fixed compatibility with other mods that detect when a ghost is built automatically.
+---------------------------------------------------------------------------------------------------
 Version: 0.3.2
 Date: Feb 7, 2026
   Bugfixes:

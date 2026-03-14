@@ -71,6 +71,7 @@ end
 local core_tests = require("src.tests.core")
 local item_requests_tests = require("src.tests.item-requests")
 local compatibility_tests = require("src.tests.compatibility")
+local mod_compatibility_tests = require("src.tests.mod-compatibility")
 local feedback_tests = require("src.tests.feedback")
 
 function run_all_tests()
@@ -92,6 +93,9 @@ function run_all_tests()
 
     game.print("\n[Compatibility]")
     compatibility_tests(run_test)
+
+    game.print("\n[Mod Compatibility - script_raised_revive]")
+    mod_compatibility_tests(run_test)
 
     game.print("\n[Feedback Spam]")
     feedback_tests(run_test)

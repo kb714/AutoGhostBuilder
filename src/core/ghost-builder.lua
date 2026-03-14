@@ -392,8 +392,8 @@ function GhostBuilder.try_build_ghost(player, ghost_entity)
         end
     end
 
-    -- Use raise_revive = false since this is automatic building
-    local revived, entity, revive_result = ghost_entity.revive({ raise_revive = false })
+    -- Raise the script_raised_revive event for compatibility with other mods
+    local revived, entity, revive_result = ghost_entity.revive({ raise_revive = true })
 
     if not revived then
         -- Return ALL items if reviving failed
