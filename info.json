@@ -1,12 +1,12 @@
 {
   "name": "AutoGhostBuilder",
-  "version": "0.3.3",
-  "factorio_version": "2.0",
+  "version": "0.3.4",
+  "factorio_version": "2.1",
   "title": "Auto Ghost Builder",
   "author": "yirazk",
   "description": "Automatically builds ghost entities when hovered over, if the player has the item in inventory. Toggleable with a shortcut.",
   "dependencies": [
-    "base >= 2.0"
+    "base >= 2.1"
   ],
   "control_input": {
     "name": "ghost-builder-toggle",

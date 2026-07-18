@@ -1,0 +1,66 @@
+name: Build Mod
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse info.json
+        id: info
+        run: |
+          if [ ! -f info.json ]; then
+            echo "❌ Error: info.json not found in the repo root!"
+            exit 1
+          fi
+          mod_name=$(jq -r '.name' info.json)
+          mod_version_raw=$(jq -r '.version' info.json)
+          if [ -z "$mod_name" ] || [ "$mod_name" = "null" ] || [ -z "$mod_version_raw" ] || [ "$mod_version_raw" = "null" ]; then
+            echo "❌ Error: Failed to parse 'name' or 'version' from info.json"
+            exit 1
+          fi
+          mod_version="${mod_name}_${mod_version_raw}"
+          echo "mod_name=$mod_name" >> "$GITHUB_OUTPUT"
+          echo "mod_version_raw=$mod_version_raw" >> "$GITHUB_OUTPUT"
+          echo "mod_version=$mod_version" >> "$GITHUB_OUTPUT"
+          echo "zip_name=${mod_version}.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Build isolated archive structure
+        run: |
+          mod_version="${{ steps.info.outputs.mod_version }}"
+          mkdir -p "build/$mod_version"
+          rsync -a \
+            --exclude='.git*' \
+            --exclude='.DS_Store' \
+            --exclude='__MACOSX' \
+            --exclude='build' \
+            ./ "build/$mod_version/"
+
+      - name: Zip mod
+        run: |
+          zip_name="${{ steps.info.outputs.zip_name }}"
+          mod_version="${{ steps.info.outputs.mod_version }}"
+          cd build && \
+          zip -r "$zip_name" "$mod_version" \
+            -x "*.DS_Store" \
+            -x "__MACOSX*" \
+            -x "*/images/*"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.info.outputs.zip_name }}
+          path: build/${{ steps.info.outputs.zip_name }}
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/') # <-- Only runs if you pushed a tag
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/${{ steps.info.outputs.zip_name }}
+          generate_release_notes: true
