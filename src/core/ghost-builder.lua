@@ -9,17 +9,31 @@ local GhostBuilder = {}
 local FEEDBACK_COOLDOWN_TICKS = 180 -- 3 seconds at 60 UPS
 
 GhostBuilder.state = {
-    mode = {}, -- player_index -> string (mode)
     feedback_mode = {}, -- player_index -> "active" or "muted"
     feedback_count = {}, -- player_index -> number (for testing feedback spam)
     last_feedback = {} -- player_index -> { [message_key] = tick }
 }
 
+--- Get the persistent mode table.
+--- This is resolved lazily because storage is restored after control.lua is evaluated.
+---@return table modes player_index -> string (mode)
+local function get_modes()
+    storage.player_modes = storage.player_modes or {}
+    return storage.player_modes
+end
+
 --- Get the current mode for a player
 ---@param player_index number
 ---@return string mode "disabled", "hover", or "click"
 function GhostBuilder.get_mode(player_index)
-    return GhostBuilder.state.mode[player_index] or "disabled"
+    return get_modes()[player_index] or "disabled"
+end
+
+--- Check whether a mode has been stored for a player
+---@param player_index number
+---@return boolean
+function GhostBuilder.has_mode(player_index)
+    return get_modes()[player_index] ~= nil
 end
 
 --- Check if ghost builder is enabled for a player (any mode except disabled)
@@ -45,7 +59,7 @@ function GhostBuilder.toggle(player_index)
         new_mode = "disabled"
     end
 
-    GhostBuilder.state.mode[player_index] = new_mode
+    get_modes()[player_index] = new_mode
     return new_mode
 end
 
@@ -53,7 +67,7 @@ end
 ---@param player_index number
 ---@param mode string "disabled", "hover", or "click"
 function GhostBuilder.set_mode(player_index, mode)
-    GhostBuilder.state.mode[player_index] = mode
+    get_modes()[player_index] = mode
 end
 
 --- Set feedback mode for a player
@@ -134,6 +148,91 @@ function GhostBuilder.find_item_source(item_name, quality, cursor_stack, invento
     return nil
 end
 
+--- Count usable items across the cursor and inventory
+---@param item_name string The item name to count
+---@param quality any The quality to match
+---@param cursor_stack LuaItemStack|nil The player's cursor stack
+---@param inventory LuaInventory|nil The player's main inventory
+---@return number count
+local function count_available_items(item_name, quality, cursor_stack, inventory)
+    local available_count = 0
+
+    if cursor_stack and cursor_stack.valid_for_read then
+        if not cursor_stack.is_item_with_tags and
+           cursor_stack.name == item_name and
+           cursor_stack.quality == quality then
+            available_count = available_count + cursor_stack.count
+        end
+    end
+
+    if inventory then
+        for i = 1, #inventory do
+            local stack = inventory[i]
+            if stack and stack.valid_for_read then
+                if not stack.is_item_with_tags and
+                   stack.name == item_name and
+                   stack.quality == quality then
+                    available_count = available_count + stack.count
+                end
+            end
+        end
+    end
+
+    return available_count
+end
+
+--- Select one usable placement item from the alternatives for an entity
+---@param item_list table List of ItemToPlace alternatives
+---@param quality any The quality to match
+---@param cursor_stack LuaItemStack|nil The player's cursor stack
+---@param inventory LuaInventory|nil The player's main inventory
+---@return table|nil required_item
+---@return table|nil missing_item
+function GhostBuilder.select_placement_item(item_list, quality, cursor_stack, inventory)
+    local best_item = nil
+    local best_available = 0
+    local smallest_deficit = nil
+
+    for _, item in pairs(item_list or {}) do
+        local required_count = item.count or 1
+        local available_count = count_available_items(item.name, quality, cursor_stack, inventory)
+
+        if available_count >= required_count then
+            return {
+                name = item.name,
+                quality = quality,
+                count = required_count,
+                source = GhostBuilder.find_item_source(item.name, quality, cursor_stack, inventory),
+                is_module = false
+            }, nil
+        end
+
+        local deficit = required_count - available_count
+        if smallest_deficit == nil or deficit < smallest_deficit then
+            best_item = item
+            best_available = available_count
+            smallest_deficit = deficit
+        end
+    end
+
+    if not best_item then
+        return nil, nil
+    end
+
+    local required_count = best_item.count or 1
+    return {
+        name = best_item.name,
+        quality = quality,
+        count = required_count,
+        source = GhostBuilder.find_item_source(best_item.name, quality, cursor_stack, inventory),
+        is_module = false
+    }, {
+        name = best_item.name,
+        quality = quality,
+        count = required_count - best_available
+    }
+end
+
 --- Check if all required items are available (entity + modules from upgrade planner)
 ---@param ghost_entity LuaEntity The ghost entity
 ---@param player LuaPlayer The player
@@ -150,27 +249,17 @@ function GhostBuilder.check_all_items_available(ghost_entity, player)
     local ghost_prototype = ghost_entity.ghost_prototype
     if ghost_prototype then
         local item_list = ghost_prototype.items_to_place_this
-        for _, item in pairs(item_list) do
-            local source = GhostBuilder.find_item_source(
-                item.name,
-                ghost_entity.quality,
-                cursor_stack,
-                inventory
-            )
-            table.insert(required_items, {
-                name = item.name,
-                quality = ghost_entity.quality,
-                count = 1,
-                source = source,
-                is_module = false
-            })
-            if not source then
-                table.insert(missing_items, {
-                    name = item.name,
-                    quality = ghost_entity.quality,
-                    count = 1
-                })
-            end
+        local required_item, missing_item = GhostBuilder.select_placement_item(
+            item_list,
+            ghost_entity.quality,
+            cursor_stack,
+            inventory
+        )
+        if required_item then
+            table.insert(required_items, required_item)
+        end
+        if missing_item then
+            table.insert(missing_items, missing_item)
         end
     end
 
@@ -187,28 +276,12 @@ function GhostBuilder.check_all_items_available(ghost_entity, player)
                 item_quality = prototypes.quality[item_quality]
             end
 
-            local available_count = 0
-
-            if cursor_stack and cursor_stack.valid_for_read then
-                if not cursor_stack.is_item_with_tags and
-                   cursor_stack.name == item_name and
-                   cursor_stack.quality == item_quality then
-                    available_count = available_count + cursor_stack.count
-                end
-            end
-
-            if inventory then
-                for i = 1, #inventory do
-                    local stack = inventory[i]
-                    if stack and stack.valid_for_read then
-                        if not stack.is_item_with_tags and
-                           stack.name == item_name and
-                           stack.quality == item_quality then
-                            available_count = available_count + stack.count
-                        end
-                    end
-                end
-            end
+            local available_count = count_available_items(
+                item_name,
+                item_quality,
+                cursor_stack,
+                inventory
+            )
 
             table.insert(required_items, {
                 name = item_name,
@@ -483,9 +556,9 @@ function GhostBuilder.on_selected_entity_changed(player)
     if not player then return end
 
     -- Initialize state from shortcut if not set
-    if GhostBuilder.state.mode[player.index] == nil then
+    if not GhostBuilder.has_mode(player.index) then
         local is_toggled = player.is_shortcut_toggled("ghost-builder-toggle")
-        GhostBuilder.state.mode[player.index] = is_toggled and "hover" or "disabled"
+        GhostBuilder.set_mode(player.index, is_toggled and "hover" or "disabled")
     end
 
     local mode = GhostBuilder.get_mode(player.index)
@@ -502,7 +575,7 @@ end
 
 --- Reset state (useful for testing)
 function GhostBuilder.reset_state()
-    GhostBuilder.state.mode = {}
+    storage.player_modes = {}
     GhostBuilder.state.feedback_mode = {}
     GhostBuilder.state.feedback_count = {}
     GhostBuilder.state.last_feedback = {}

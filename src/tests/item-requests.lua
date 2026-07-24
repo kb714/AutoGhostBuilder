@@ -19,6 +19,47 @@ return function(run_test)
         end
     end
 
+    run_test("Uses an available alternative placement item", function(assert)
+        local player = get_player()
+        local inventory = player.get_main_inventory()
+        local quality = prototypes.quality["normal"]
+
+        player.clear_cursor()
+        inventory.clear()
+        inventory.insert{name = "steel-chest", count = 1}
+
+        local required, missing = GhostBuilder.select_placement_item({
+            {name = "iron-chest", count = 1},
+            {name = "steel-chest", count = 1}
+        }, quality, player.cursor_stack, inventory)
+
+        assert.equals("steel-chest", required.name)
+        assert.equals(1, required.count)
+        assert.is_nil(missing)
+
+        inventory.clear()
+    end)
+
+    run_test("Honors placement item counts", function(assert)
+        local player = get_player()
+        local inventory = player.get_main_inventory()
+        local quality = prototypes.quality["normal"]
+
+        player.clear_cursor()
+        inventory.clear()
+        inventory.insert{name = "iron-chest", count = 1}
+
+        local required, missing = GhostBuilder.select_placement_item({
+            {name = "iron-chest", count = 2}
+        }, quality, player.cursor_stack, inventory)
+
+        assert.equals("iron-chest", required.name)
+        assert.equals(2, required.count)
+        assert.equals(1, missing.count)
+
+        inventory.clear()
+    end)
+
     run_test("Handles ghost without item_requests", function(assert)
         local player = get_player()
         local surface = player.surface

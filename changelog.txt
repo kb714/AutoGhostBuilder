@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.4
+Date: Jul 24, 2026
+  Features:
+    - Added early support for Factorio 2.1.
+  Bugfixes:
+    - Click mode is now preserved when saving and loading a game.
+    - Correctly handles alternative placement items and placement costs greater than one item.
+  Internal:
+    - Updated the automated test runner for Factorio 2.1 headless servers.
+---------------------------------------------------------------------------------------------------
 Version: 0.3.3
 Date: Mar 14, 2026
   Bugfixes:

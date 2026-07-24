@@ -102,8 +102,8 @@ function startServer() {
             '--mod-directory', `"${TEST_MODS_DIR}"`,
             '--server-settings', `"${SERVER_SETTINGS}"`,
             '--rcon-port', RCON_PORT.toString(),
-            '--rcon-password', RCON_PASSWORD,
-            '--disable-audio'
+            // Headless already disables audio and rejects the --disable-audio option.
+            '--rcon-password', RCON_PASSWORD
         ].join(' ');
 
         const serverProc = spawn(command, [], {
