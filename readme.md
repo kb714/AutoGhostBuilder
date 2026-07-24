@@ -51,7 +51,7 @@ When enabled, AutoGhostBuilder automatically constructs ghosts when you have the
 
 ## Requirements
 
-- Factorio 2.0 or higher
+- Factorio 2.1 (use AutoGhostBuilder 0.3.3 for Factorio 2.0)
 - Items must be in your inventory or cursor
 - Ghosts must match the quality of items you have
 - Ghosts must be within your build distance

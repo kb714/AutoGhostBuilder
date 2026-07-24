@@ -65,6 +65,22 @@ return function(run_test)
     end)
 
     reset()
+    run_test("stores player mode in persistent storage", function(assert)
+        GhostBuilder.set_mode(1, "click")
+
+        assert.equals("click", storage.player_modes[1])
+        assert.equals("click", GhostBuilder.get_mode(1))
+    end)
+
+    reset()
+    run_test("restores player mode from persistent storage", function(assert)
+        storage.player_modes[1] = "click"
+
+        assert.is_true(GhostBuilder.has_mode(1))
+        assert.equals("click", GhostBuilder.get_mode(1))
+    end)
+
+    reset()
     run_test("Hover mode builds ghost when selected", function(assert)
         local player = get_player()
         local surface = player.surface
